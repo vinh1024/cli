@@ -264,7 +264,7 @@ main (int argc, char **argv, char **env)
 
   vty_hello (vty);
 
-  vtysh_execute("enable");
+  //vtysh_execute("enable");
 
   conn = conn_init();
   if (conn == NULL) {
