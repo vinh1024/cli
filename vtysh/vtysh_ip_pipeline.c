@@ -28,7 +28,8 @@ int send_cmd(struct conn *conn, char *cmd)
 {
 	char cmd_line[MAX_SIZE];
 	int cmd_len;
-	int size_recv, event_count;
+	unsigned int size_recv;
+	int event_count;
 	struct epoll_event event;
 
 	if (conn == NULL) {
@@ -43,16 +44,18 @@ int send_cmd(struct conn *conn, char *cmd)
 		perror("Send failed");
 		return -1;
 	}
-
+	//event_count = epoll_wait(conn->fd_server_group, &event, 1, 500);
+	//printf("event=============%d\n", event_count);
 	size_recv = read(conn->fd_client, conn->msg_r, conn->msg_r_len_max);
 
 	if (size_recv > 0) {
+		//printf("================over flow============%ld\n", size_recv);
 		conn->msg_r[size_recv] = '\0';
 		printf("%s\n", conn->msg_r);
 		fflush(stdout);
 	}
 
-	event_count = epoll_wait(conn->fd_server_group, &event, 1, 500);
+	event_count = epoll_wait(conn->fd_server_group, &event, 1, 100);
 	if (event_count > 0) {
 		size_recv = read(conn->fd_client, conn->msg_r, conn->msg_r_len_max);
 		if (size_recv > 0) {
@@ -212,6 +215,15 @@ DEFUN (pcap_dstip_ls,
 	return CMD_SUCCESS;
 }
 
+DEFUN (firewall_ls,
+	   firewall_ls_cmd,
+	   "firewall ls",
+	   "Hieu thi cac rule ACL co trong Scrubber")
+{
+	if (send_cmd(conn, "firewall ls") < 0) 
+		return CMD_WARNING;
+	return CMD_SUCCESS;
+}
 /*DEFUN (clear,
 	   clear_cmd,
 	   "clear",
@@ -295,6 +307,94 @@ DEFUN (malformed_type,
 	return CMD_SUCCESS;
 }
 
+DEFUN (synproxy_conf,
+	   synproxy_conf_cmd,
+	   "synproxy (enable|disable)",
+	   "Synproxy configure\n"
+	   "Enable tinh nang synproxy\n"
+	   "Disable tinh nang synproxy")
+{
+	char cmd_line[MAX_SIZE];
+	snprintf(cmd_line, MAX_SIZE, "synproxy %s", argv[0]);
+	if (send_cmd(conn, cmd_line) < 0)
+		return CMD_WARNING;
+	return CMD_SUCCESS;
+}
+
+DEFUN (redis_conf,
+	   redis_conf_cmd,
+	   "redis (enable|disable) (polling|pushing)",
+	   "Redis configure\n"
+	   "Cho phep viec nhan command tu dashboard\n"
+	   "Tam thoi ngat nhan command tu dashboard\n"
+	   "Cho phep gui thong tin len dashboard\n"
+	   "Tam thoi ngat gui thong tin len dashboard")
+{
+	char cmd_line[MAX_SIZE];
+	snprintf(cmd_line, MAX_SIZE, "redis %s %s", argv[0], argv[1]);
+	if (send_cmd(conn, cmd_line) < 0) 
+		return CMD_WARNING;
+	return CMD_SUCCESS;
+}
+
+DEFUN (redis_auto_reconnect,
+	   redis_auto_reconnect_cmd,
+	   "redis (enable|disable) auto_reconnect",
+	   "Redis auto reconnect\n"
+	   "Enable tinh nang tu dong ket noi lai voi redis server\n"
+	   "Disable tinh nang tu dong ket noi lai voi redis server")
+{
+	char cmd_line[MAX_SIZE];
+	snprintf(cmd_line, MAX_SIZE, "redis %s auto_reconnect", argv[0]);
+	if (send_cmd(conn, cmd_line) < 0) 
+		return CMD_WARNING;
+	return CMD_SUCCESS;
+}
+
+DEFUN (redis_conn,
+	   redis_conn_cmd,
+	   "redis (reconnect|disconnect)",
+	   "redis establish Connection\n"
+	   "Ket noi lai toi server duoc ket noi gan nhat\n"
+	   "Ngat ket noi voi redis")
+{
+	char cmd_line[MAX_SIZE];
+	snprintf(cmd_line, MAX_SIZE, "redis %s", argv[0]);
+	if (send_cmd(conn, cmd_line) < 0) 
+		return CMD_WARNING;
+	return CMD_SUCCESS;
+}
+
+DEFUN (redis_connect_host,
+	   redis_connect_host_cmd,
+	   "redis connect (WORD|A.B.C.D) <port>",
+	   "redis establish Connection\n"
+	   "Ket noi voi redis server thong qua hostname\n"
+	   "Ket noi voi redis server thong qua ip address")
+{
+	char cmd_line[MAX_SIZE];
+	snprintf(cmd_line, MAX_SIZE, "redis connect %s %s", argv[0], argv[1]);
+	if (send_cmd(conn, cmd_line) < 0) 
+		return CMD_WARNING;
+	return CMD_SUCCESS;
+}
+
+DEFUN (pcap_conf,
+	   pcap_conf_cmd,
+	   "pcap (enable|disable)",
+	   "pcap configure\n"
+	   "Enable module pcap\n"
+	   "Disable module pcap")
+{
+	char cmd_line[MAX_SIZE];
+	snprintf(cmd_line, MAX_SIZE, "pcap %s", argv[0]);
+	if (send_cmd(conn, cmd_line) < 0)
+		return CMD_WARNING;
+	return CMD_SUCCESS;
+}
+
+//CONFIUGRE NOED
+
 DEFUN (firewall_del_bgpfs_rule,
 	   firewall_del_bgpfs_rule_cmd,
 	   "firewall del bgpfs rule <rule_id>",
@@ -307,13 +407,31 @@ DEFUN (firewall_del_bgpfs_rule,
 	return CMD_SUCCESS;
 }
 
-DEFUN (firewall_conf,
+/*DEFUN (firewall_conf,
 	   firewall_conf_cmd,
 	   "firewall add priority 10 bgpfs .LINE",
 	   "Them rule whilelist")
 {
 	//printf("argc: %d, argv[0]: %s\n", argc, argv[0]);
 
+	return CMD_SUCCESS;
+}*/
+
+DEFUN (firewall_add_priority_10_bgpfs,
+	   firewall_add_priority_10_bgpfs_cmd,
+	   "firewall add priority 10 bgpfs .LINE",
+	   "Them rule\n"
+	   "Them rule vao whilelist hoac blacklist")
+{
+	char cmd_line[MAX_SIZE] = "firewall add priority 10 bgpfs";
+	for (int i = 0; i < argc; i++) {
+		strcat(cmd_line, " ");
+		strcat(cmd_line, argv[i]);
+	}
+
+	//printf("%s\n", cmd_line);
+	if (send_cmd(conn, cmd_line) < 0)
+		return CMD_WARNING;
 	return CMD_SUCCESS;
 }
 
@@ -339,19 +457,7 @@ DEFUN (firewall_del_default,
 	return CMD_SUCCESS;
 }
 
-DEFUN (synproxy_conf,
-	   synproxy_conf_cmd,
-	   "synproxy (enable|disable)",
-	   "Synproxy configure\n"
-	   "Enable tinh nang synproxy\n"
-	   "Disable tinh nang synproxy")
-{
-	char cmd_line[MAX_SIZE];
-	snprintf(cmd_line, MAX_SIZE, "synproxy %s", argv[0]);
-	if (send_cmd(conn, cmd_line) < 0)
-		return CMD_WARNING;
-	return CMD_SUCCESS;
-}
+
 
 void vtysh_ippp_init (void)
 {
@@ -369,15 +475,23 @@ void vtysh_ippp_init (void)
     install_element (VIEW_NODE, &pcap_status_cmd);
     install_element (VIEW_NODE, &pcap_dstip_ls_cmd);
     install_element (VIEW_NODE, &corestats_show_pipeline_id_cmd);
+    install_element (VIEW_NODE, &firewall_ls_cmd);
 
     install_element (ENABLE_NODE, &malformed_type_cmd);
     install_element (ENABLE_NODE, &corestats_type_cmd);
     install_element (ENABLE_NODE, &sysinfo_type_cmd);
     install_element (ENABLE_NODE, &latency_conf_cmd);
+    install_element (ENABLE_NODE, &synproxy_conf_cmd);
+    install_element (ENABLE_NODE, &redis_conf_cmd);
+    install_element (ENABLE_NODE, &redis_auto_reconnect_cmd);
+    install_element (ENABLE_NODE, &redis_conn_cmd);
+    install_element (ENABLE_NODE, &redis_connect_host_cmd);
+    install_element (ENABLE_NODE, &pcap_conf_cmd);
 
     install_element (CONFIG_NODE, &firewall_del_bgpfs_rule_cmd);
-    install_element (CONFIG_NODE, &firewall_conf_cmd);
+    //install_element (CONFIG_NODE, &firewall_conf_cmd);
     install_element (CONFIG_NODE, &firewall_add_default_cmd);
-    install_element (CONFIG_NODE, &firewall_del_default_cmd);
+    install_element (CONFIG_NODE, &firewall_del_default_cmd); 
+    install_element (CONFIG_NODE, &firewall_add_priority_10_bgpfs_cmd);
 
 }

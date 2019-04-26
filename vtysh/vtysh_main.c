@@ -264,8 +264,8 @@ main (int argc, char **argv, char **env)
 
   vty_hello (vty);
 
-  //vtysh_execute("enable");
-
+  vtysh_execute("enable");
+  vtysh_execute("configure terminal");
   conn = conn_init();
   if (conn == NULL) {
     printf("Cannot establish connection!\n");
