@@ -21,6 +21,11 @@
 #define MAX_SIZE (1024 * 1024)
 #define PORT 8086
 
+#define SEND_AND_RETURN(cmd_line) 		\
+ 	if (send_cmd(conn, cmd_line) < 0) 	\
+		return CMD_WARNING; 			\
+	return CMD_SUCCESS; 
+
 struct conn *conn;
 
 
@@ -44,12 +49,9 @@ int send_cmd(struct conn *conn, char *cmd)
 		perror("Send failed");
 		return -1;
 	}
-	//event_count = epoll_wait(conn->fd_server_group, &event, 1, 500);
-	//printf("event=============%d\n", event_count);
 	size_recv = read(conn->fd_client, conn->msg_r, conn->msg_r_len_max);
 
 	if (size_recv > 0) {
-		//printf("================over flow============%ld\n", size_recv);
 		conn->msg_r[size_recv] = '\0';
 		printf("%s\n", conn->msg_r);
 		fflush(stdout);
@@ -66,7 +68,7 @@ int send_cmd(struct conn *conn, char *cmd)
 	}
 	return CMD_SUCCESS;
 }
-
+/*
 DEFUN(read_mess,
 	  read_mess_cmd,
 	  "read mess", 
@@ -82,17 +84,16 @@ DEFUN(read_mess,
 	}
 	return CMD_SUCCESS;
 }
+*/
+
+/* VIEW NODE CMD */
 
 DEFUN (redis_status,
 	   redis_status_cmd,
 	   "redis status",
 	   "check redis status")
 {
-	int status = send_cmd(conn, "redis status");
-	if (status < 0) 
-		return CMD_WARNING;
-
-	return CMD_SUCCESS;
+	SEND_AND_RETURN("redis status");
 }
 
 DEFUN (link_ls, 
@@ -100,33 +101,18 @@ DEFUN (link_ls,
 	  "link ls",
 	  "Hien thi trang thai cac link")
 {
-	int status = send_cmd(conn, "link ls");
-	if (status < 0)
-		return CMD_WARNING;
-
-	return CMD_SUCCESS;
+	SEND_AND_RETURN("link ls");
 }
 DEFUN (corestats_show,
 	   corestats_show_cmd,
-	   "corestats show",
-	   "Hien thi thong ke so luong goi tin vao ra cho tat ca pipeline")
-{
-	int status = send_cmd(conn, "corestats show");
-	if (status < 0)
-		return CMD_WARNING;
-
-	return CMD_SUCCESS;
-}
-
-DEFUN (corestats_clear,
-	   corestats_clear_cmd,
-	   "corestats clear", 
+	   "corestats (show|clear)",
+	   "Corestats view\n"
+	   "Hien thi thong ke so luong goi tin vao ra cho tat ca pipeline\n"
 	   "Reset lai thong ke ve 0")
 {
-	int status  = send_cmd(conn, "corestats clear");
-	if (status < 0) 
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	char cmd_line[MAX_SIZE];
+	snprintf(cmd_line, MAX_SIZE, "corestats %s", argv[0]);
+	SEND_AND_RETURN(cmd_line);
 }
 
 DEFUN (latency_show,
@@ -134,11 +120,7 @@ DEFUN (latency_show,
 	   "latency show", 
 	   "Hien thi dang latency trung binh")
 {
-
-	int status = send_cmd(conn, "latency show");
-	if (status < 0) 
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN("latency show");
 }
 
 DEFUN (malformed_status,
@@ -147,36 +129,27 @@ DEFUN (malformed_status,
 	   "Hien thi dang malformed packet ma scrubber co kha nang nhan biet"
 	   "va trang thai chan cho dang do (enable hay disable)")
 {
-	int status = send_cmd(conn, "malformed status");
-	if (status < 0) 
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN("malformed status");
 }
 
 DEFUN (synproxy_status,
 	   synproxy_status_cmd,
 	   "synproxy status",
+	   "synproxy view node\n"
 	   "Hien thi trang thai chung cua synproxy")
 {
-	int status;
-	status = send_cmd(conn, "synproxy status");
-	if (status < 0) 
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN("synproxy status");
 }
 
 DEFUN (synproxy_scrip_ip_status,
 	   synproxy_scrip_ip_status_cmd,
 	   "synproxy scrip A.B.C.D status",
+	   "synproxy view node\n"
 	   "Kiem tra trang thai cua mot srcIP bat ky")
 {
-	int status;
 	char cmd_line[MAX_SIZE];
 	snprintf(cmd_line, MAX_SIZE, "synproxy scrip %s status", argv[0]);
-
-	if ((status = send_cmd(conn, cmd_line)) < 0) 
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
 
 DEFUN (ratelimit_dstip_show,
@@ -184,35 +157,27 @@ DEFUN (ratelimit_dstip_show,
 	   "ratelimit dstip A.B.C.D show",
 	   "Hien thi cac thong so rate limit cho <dstip>")
 {
-	int status;
 	char cmd_line[MAX_SIZE];
 	snprintf(cmd_line, MAX_SIZE, "ratelimit dstip %s show", argv[0]);
-	
-	if ((status = send_cmd(conn, cmd_line)) < 0)
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
 
 DEFUN (pcap_status, 
 	   pcap_status_cmd,
 	   "pcap status",
+	   "pcap view node\n"
 	   "Hien thi thong tin chung ve module pcap")
 {
-	int status = send_cmd(conn, "pcap status");
-	if (status < 0) 
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN("pcap status");
 }
 
 DEFUN (pcap_dstip_ls,
 	   pcap_dstip_ls_cmd,
 	   "pcap dstip ls",
+	   "pcap view node\n"
 	   "Hien thi ca dstip dang duoc capture")
 {
-	int status = send_cmd(conn, "pcap dstip ls");
-	if (status < 0) 
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN("pcap dstip ls");
 }
 
 DEFUN (firewall_ls,
@@ -220,31 +185,22 @@ DEFUN (firewall_ls,
 	   "firewall ls",
 	   "Hieu thi cac rule ACL co trong Scrubber")
 {
-	if (send_cmd(conn, "firewall ls") < 0) 
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN("firewall ls");
 }
-/*DEFUN (clear,
-	   clear_cmd,
-	   "clear",
-	   "Xoa man hinh")
-{
 
-}*/
 
 DEFUN (corestats_show_pipeline_id,
 	   corestats_show_pipeline_id_cmd,
-	   "corestats show <pipeline_id>",
+	   "corestats show <0-1000>",
 	   "Hien thi thong ke so luong vao ra voi ID la <ip_pipeline>")
 {
 	char cmd_line[MAX_SIZE];
-	int status;
 	snprintf(cmd_line, MAX_SIZE, "corestats show %s", argv[0]);
-	status = send_cmd(conn, cmd_line);
-	if (status < 0)
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
+
+
+// ENABLE NODE
 
 DEFUN (corestats_type,
 	   corestats_type_cmd,
@@ -256,11 +212,8 @@ DEFUN (corestats_type,
 	   " Khong nen chay command nay bang tay vi co the dan den hien thi sai thong tin tren portal")
 {
 	char cmd_line[MAX_SIZE];
-	int status;
 	snprintf(cmd_line, MAX_SIZE, "corestats %s", argv[0]);
-	if((status = send_cmd(conn, cmd_line)) < 0)
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
 
 DEFUN (sysinfo_type,
@@ -272,9 +225,7 @@ DEFUN (sysinfo_type,
 {
 	char cmd_line[MAX_SIZE];
 	snprintf(cmd_line, MAX_SIZE, "sysinfo %s", argv[0]);
-	if (send_cmd(conn, cmd_line) < 0)
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
 
 DEFUN (latency_conf,
@@ -286,9 +237,7 @@ DEFUN (latency_conf,
 {
 	char cmd_line[MAX_SIZE];
 	snprintf(cmd_line, MAX_SIZE, "latency %s", argv[0]);
-	if (send_cmd(conn, cmd_line) < 0)
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
 
 DEFUN (malformed_type,
@@ -296,15 +245,12 @@ DEFUN (malformed_type,
 	   "malformed (enable|disable) WORD",
 	   "Malformed configure\n"
 	   "Enable tinh nang chan cac goi tin tan cong dang <atack_type>\n"
-	   "Disable tinh nang chan cac goi tin co dau hieu tan cong dang <atack_type>\n")
+	   "Disable tinh nang chan cac goi tin co dau hieu tan cong dang <atack_type>\n"
+	   "atack_type")
 {
-	int status;
 	char cmd_line[MAX_SIZE];
 	snprintf(cmd_line, MAX_SIZE, "malformed %s %s", argv[0], argv[1]);
-	status = send_cmd(conn, cmd_line);
-	if (status < 0)
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
 
 DEFUN (synproxy_conf,
@@ -316,9 +262,7 @@ DEFUN (synproxy_conf,
 {
 	char cmd_line[MAX_SIZE];
 	snprintf(cmd_line, MAX_SIZE, "synproxy %s", argv[0]);
-	if (send_cmd(conn, cmd_line) < 0)
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
 
 DEFUN (redis_conf,
@@ -332,51 +276,46 @@ DEFUN (redis_conf,
 {
 	char cmd_line[MAX_SIZE];
 	snprintf(cmd_line, MAX_SIZE, "redis %s %s", argv[0], argv[1]);
-	if (send_cmd(conn, cmd_line) < 0) 
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
 
 DEFUN (redis_auto_reconnect,
 	   redis_auto_reconnect_cmd,
 	   "redis (enable|disable) auto_reconnect",
-	   "Redis auto reconnect\n"
+	   "Redis configure\n"
 	   "Enable tinh nang tu dong ket noi lai voi redis server\n"
-	   "Disable tinh nang tu dong ket noi lai voi redis server")
+	   "Disable tinh nang tu dong ket noi lai voi redis server\n"
+	   "Redis auto reconnect\n")
 {
 	char cmd_line[MAX_SIZE];
 	snprintf(cmd_line, MAX_SIZE, "redis %s auto_reconnect", argv[0]);
-	if (send_cmd(conn, cmd_line) < 0) 
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
 
 DEFUN (redis_conn,
 	   redis_conn_cmd,
 	   "redis (reconnect|disconnect)",
-	   "redis establish Connection\n"
+	   "Redis configure\n"
 	   "Ket noi lai toi server duoc ket noi gan nhat\n"
 	   "Ngat ket noi voi redis")
 {
 	char cmd_line[MAX_SIZE];
 	snprintf(cmd_line, MAX_SIZE, "redis %s", argv[0]);
-	if (send_cmd(conn, cmd_line) < 0) 
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
 
 DEFUN (redis_connect_host,
 	   redis_connect_host_cmd,
-	   "redis connect (WORD|A.B.C.D) <port>",
+	   "redis connect (WORD|A.B.C.D) <1-65535>",
+	   "Redis configure\n"
 	   "redis establish Connection\n"
 	   "Ket noi voi redis server thong qua hostname\n"
-	   "Ket noi voi redis server thong qua ip address")
+	   "Ket noi voi redis server thong qua ip address\n"
+	   "port")
 {
 	char cmd_line[MAX_SIZE];
 	snprintf(cmd_line, MAX_SIZE, "redis connect %s %s", argv[0], argv[1]);
-	if (send_cmd(conn, cmd_line) < 0) 
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
 
 DEFUN (pcap_conf,
@@ -388,39 +327,26 @@ DEFUN (pcap_conf,
 {
 	char cmd_line[MAX_SIZE];
 	snprintf(cmd_line, MAX_SIZE, "pcap %s", argv[0]);
-	if (send_cmd(conn, cmd_line) < 0)
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
 
-//CONFIUGRE NOED
+/* CONFIUGRE NOED */
 
 DEFUN (firewall_del_bgpfs_rule,
 	   firewall_del_bgpfs_rule_cmd,
-	   "firewall del bgpfs rule <rule_id>",
+	   "firewall del bgpfs rule <0-1000>",
+	   "firewall configure\n"
 	   "Xoa mot rule ACL trong Scrubber")
 {
 	char cmd_line[MAX_SIZE];
 	snprintf(cmd_line, MAX_SIZE, "firewall del bgpfs rule %s", argv[0]);
-	if (send_cmd(conn, cmd_line) < 0) 
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
-
-/*DEFUN (firewall_conf,
-	   firewall_conf_cmd,
-	   "firewall add priority 10 bgpfs .LINE",
-	   "Them rule whilelist")
-{
-	//printf("argc: %d, argv[0]: %s\n", argc, argv[0]);
-
-	return CMD_SUCCESS;
-}*/
 
 DEFUN (firewall_add_priority_10_bgpfs,
 	   firewall_add_priority_10_bgpfs_cmd,
 	   "firewall add priority 10 bgpfs .LINE",
-	   "Them rule\n"
+	   "firewall configure\n"
 	   "Them rule vao whilelist hoac blacklist")
 {
 	char cmd_line[MAX_SIZE] = "firewall add priority 10 bgpfs";
@@ -428,45 +354,115 @@ DEFUN (firewall_add_priority_10_bgpfs,
 		strcat(cmd_line, " ");
 		strcat(cmd_line, argv[i]);
 	}
-
-	//printf("%s\n", cmd_line);
-	if (send_cmd(conn, cmd_line) < 0)
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
 
 DEFUN (firewall_add_default,
 	   firewall_add_default_cmd,
-	   "firewall add default <port_id>",
+	   "firewall add default <0-1000>",
+	   "firewall configure\n"
 	   "Them rule mac dinh")
 {
 	char cmd_line[MAX_SIZE];
 	snprintf(cmd_line, MAX_SIZE, "firewall add default %s", argv[0]);
-	if (send_cmd(conn, cmd_line) < 0) 
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN(cmd_line);
 }
 
 DEFUN (firewall_del_default,
 	   firewall_del_default_cmd,
 	   "firewall del default",
+	   "firewall configure\n"
 	   "Xoa rule mac dinh")
 {
-	if (send_cmd(conn, "firewall del default") < 0)
-		return CMD_WARNING;
-	return CMD_SUCCESS;
+	SEND_AND_RETURN("firewall del default");
+}
+
+DEFUN (synproxy_scrip_ip_del,
+	   synproxy_scrip_ip_del_cmd,
+	   "synproxy scrip A.B.C.D del",
+	   "Xoa mot srcIP ra khoi mot danh sach cac IP tracking")
+{
+	char cmd_line[MAX_SIZE];
+	snprintf(cmd_line, MAX_SIZE, "synproxy scrip %s del", argv[0]);
+	SEND_AND_RETURN(cmd_line);
+}
+
+DEFUN (synproxy_syn_ack_ratio_thres,
+	   synproxy_syn_ack_ratio_thres_cmd,
+	   "synproxy syn_ack_ratio_thres <0-1000>",
+	   "Cau hinh nguong chan tren ti le goi ack")
+{
+	char cmd_line[MAX_SIZE];
+	snprintf(cmd_line, MAX_SIZE, "synproxy syn_ack_ratio_thres %s", argv[0]);
+	SEND_AND_RETURN(cmd_line);
+}
+
+DEFUN (ratelimit_dstip_proto,
+	   ratelimit_dstip_proto_cmd,
+	   "ratelimit dstip A.B.C.D proto (udp|tcp|icmp) <0-10000000> (mbps|kbps)",
+	   "Cau hinh nguong cho dstip va protocol")
+{
+	char cmd_line[MAX_SIZE];
+	snprintf(cmd_line, MAX_SIZE, "ratelimit dstip %s proto %s %s %s", 
+									argv[0], argv[1], argv[2], argv[3]);
+	SEND_AND_RETURN(cmd_line);
+}
+
+DEFUN (redis_channel_name,
+	   redis_channel_name_cmd,
+	   "redis (cmdqueue|netflowq|sysinfoq|corestatsq|bwstatsq) WORD",
+	   "Thay doi hang doi nhan gui thong tin voi redis")
+{
+	char cmd_line[MAX_SIZE];
+	snprintf(cmd_line, MAX_SIZE, "redis %s %s", argv[0], argv[1]);
+	SEND_AND_RETURN(cmd_line);
+}
+
+DEFUN (pcap_duration_or_samp,
+	   pcap_duration_or_samp_cmd,
+	   "pcap dstip add A.B.C.D {duration WORD |sampling_rate WORD}",
+	   "pca configure node config\n"
+	   "key\n"
+	   "key\n"
+	   "Destination IP\n"
+	   "Viec capture goi ket thuc sau time_out giay\n"
+	   "Thoi gian time_out (s)\n"
+	   "Cu moi N goi tin lay mau mot goi\n"
+	   "So goi tin N")
+{
+	char cmd_line[MAX_SIZE];
+	if (argv[1] == NULL) {
+		snprintf(cmd_line, MAX_SIZE, "pcap dstip add %s", argv[0]);
+	} else if (argv[1] != NULL && argv[2] == NULL) {
+		snprintf(cmd_line, MAX_SIZE, "pcap dstip add %s duration %s", argv[0], argv[1]);
+	} else {
+		snprintf(cmd_line, MAX_SIZE, "pcap dstip add %s duration %s sampling_rate %s", 
+													argv[0], argv[1], argv[2]);
+	}
+	SEND_AND_RETURN(cmd_line);
+}
+
+DEFUN (pcap_packet_per_file,
+	   pcap_packet_per_file_cmd,
+	   "pcap packet_per_file WORD",
+	   "pcap configure node config\n"
+	   "Cau hinh So luong goi tin trong moi file pcap. Mac dinh 500\n"
+	   "So luong goi tin")
+{
+	char cmd_line[MAX_SIZE];
+	snprintf(cmd_line, MAX_SIZE, "pcap packet_per_file %s", argv[0]);
+	SEND_AND_RETURN(cmd_line);
 }
 
 
 
 void vtysh_ippp_init (void)
 {
-    install_element (ENABLE_NODE, &read_mess_cmd);
+    //install_element (ENABLE_NODE, &read_mess_cmd);
     install_element (VIEW_NODE, &read_mess_cmd);
     install_element (VIEW_NODE, &redis_status_cmd);
     install_element (VIEW_NODE, &link_ls_cmd);
     install_element (VIEW_NODE, &corestats_show_cmd);
-    install_element (VIEW_NODE, &corestats_clear_cmd);
     install_element (VIEW_NODE, &latency_show_cmd);
     install_element (VIEW_NODE, &malformed_status_cmd);
     install_element (VIEW_NODE, &synproxy_status_cmd);
@@ -489,9 +485,13 @@ void vtysh_ippp_init (void)
     install_element (ENABLE_NODE, &pcap_conf_cmd);
 
     install_element (CONFIG_NODE, &firewall_del_bgpfs_rule_cmd);
-    //install_element (CONFIG_NODE, &firewall_conf_cmd);
     install_element (CONFIG_NODE, &firewall_add_default_cmd);
     install_element (CONFIG_NODE, &firewall_del_default_cmd); 
     install_element (CONFIG_NODE, &firewall_add_priority_10_bgpfs_cmd);
-
+    install_element (CONFIG_NODE, &synproxy_scrip_ip_del_cmd);
+    install_element (CONFIG_NODE, &synproxy_syn_ack_ratio_thres_cmd);
+    install_element (CONFIG_NODE, &ratelimit_dstip_proto_cmd);
+    install_element (CONFIG_NODE, &redis_channel_name_cmd);
+    install_element (CONFIG_NODE, &pcap_duration_or_samp_cmd);
+    install_element (CONFIG_NODE, &pcap_packet_per_file_cmd);
 }
