@@ -2,7 +2,6 @@
 #define __CONN_H__
 
 #include <stdint.h>
-#define MAXEVENT (5)
 struct conn {
 	char *msg_r;
 	char *msg_w;
@@ -13,7 +12,7 @@ struct conn {
 };
 
 
-struct conn *conn_init(char *SERVER_ADDR, int port);
+struct conn *conn_init(const char *SERVER_ADDR, int PORT);
 
 void conn_free(struct conn *conn);
 

@@ -43,7 +43,7 @@ int readall(int fd, char *buffer, int size)
 	return total_read;
 }
 
-struct conn *conn_init(char *SERVER_ADDR, int port) {
+struct conn *conn_init(const char *SERVER_ADDR, int PORT) {
 
 	struct sockaddr_in server_addr;
 	struct conn *conn;
@@ -64,7 +64,7 @@ struct conn *conn_init(char *SERVER_ADDR, int port) {
 
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDR);
-	server_addr.sin_port = htons(port);
+	server_addr.sin_port = htons(PORT);
 
 	//create socket
 	fd_client = socket(AF_INET, SOCK_STREAM, 0);

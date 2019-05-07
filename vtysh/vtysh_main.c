@@ -27,7 +27,8 @@
 #include <pwd.h>
 #include <pthread.h>
 #include <time.h>
-#include<termios.h>
+#include <termios.h>
+#include <sys/epoll.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -41,6 +42,9 @@
 #include "vtysh/vtysh_user.h"
 #include "if.h"
 #include "lib/conn.h"
+
+#define SERVER_ADDR "192.168.2.67"
+#define PORT 8086
 
 char history_file[MAXPATHLEN];
 /* VTY shell program name. */
@@ -76,6 +80,7 @@ time_t timeout_start;
 struct termios tp;
 
 struct conn *conn;
+
 
 /* SIGTSTP handler.  This function care user's ^Z input. */
 void
@@ -203,12 +208,39 @@ void *vtysh_timeout_detect_thread(void *arg) {
   }
 }
 
+void *check_conn() {
+  struct epoll_event event;
+  int even_count;
+
+  event.events = EPOLLRDHUP | EPOLLERR | EPOLLHUP;
+  event.data.fd = conn->fd_client;
+
+  epoll_ctl(conn->fd_server_group, EPOLL_CTL_ADD, conn->fd_client, &event);
+
+  while(1) {
+    if (conn == NULL) {
+      return 0;
+    }
+    even_count = epoll_wait(conn->fd_server_group, &event, 1, 0);
+    if (even_count > 0) {
+      if ((event.events &  (EPOLLERR | EPOLLHUP | EPOLLRDHUP))) {
+        printf("Connection is interrupted. Press Enter\n");
+        epoll_ctl(conn->fd_server_group, EPOLL_CTL_DEL, conn->fd_client, NULL);
+        conn_free(conn);
+        conn = NULL;
+        return 0;
+      }
+    }
+  }
+}
+
 /* VTY shell main routine. */
 int
 main (int argc, char **argv, char **env)
 {
   char *p;
   int ret;
+  pthread_t conn_handling;
 
   pthread_t vtysh_timeout_thread;
 
@@ -264,12 +296,15 @@ main (int argc, char **argv, char **env)
 
   vty_hello (vty);
 
-  vtysh_execute("enable");
-  vtysh_execute("configure terminal");
-  conn = conn_init();
+  //vtysh_execute("enable");
+  //vtysh_execute("configure terminal");
+  conn = conn_init(SERVER_ADDR, PORT);
   if (conn == NULL) {
     printf("Cannot establish connection!\n");
   }
+
+  if (conn != NULL) 
+    pthread_create(&conn_handling, NULL, check_conn, NULL);
   
   /* Preparation for longjmp() in sigtstp(). */
   sigsetjmp (jmpbuf, 1);
