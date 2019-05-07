@@ -16,7 +16,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <pthread.h> 
 #include "lib/conn.h"
+
 
 #define MAX_SIZE (1024 * 1024)
 #define PORT 8086
@@ -28,14 +30,19 @@
 
 struct conn *conn;
 
+int str2i(const char *str) 
+{
+	int val = 0, i;
+	for (i = 0; (str[i] >= '0' && str[i] <= '9'); i++) {
+        val = val * 10 + (str[i] - '0'); 
+    }
+    return val;
+}
 
-int send_cmd(struct conn *conn, char *cmd)
+int send_cmd(struct conn *conn, char *cmd) 
 {
 	char cmd_line[MAX_SIZE];
-	int cmd_len;
-	unsigned int size_recv;
-	int event_count;
-	struct epoll_event event;
+	int cmd_len, size_recv;
 
 	if (conn == NULL) {
 		printf("Connection is not established!\n");
@@ -49,44 +56,69 @@ int send_cmd(struct conn *conn, char *cmd)
 		perror("Send failed");
 		return -1;
 	}
-	size_recv = read(conn->fd_client, conn->msg_r, conn->msg_r_len_max);
 
+	size_recv = readall(conn->fd_client, conn->msg_r,MAX_SIZE);
 	if (size_recv > 0) {
 		conn->msg_r[size_recv] = '\0';
-		printf("%s\n", conn->msg_r);
-		fflush(stdout);
 	}
-
-	event_count = epoll_wait(conn->fd_server_group, &event, 1, 100);
-	if (event_count > 0) {
-		size_recv = read(conn->fd_client, conn->msg_r, conn->msg_r_len_max);
-		if (size_recv > 0) {
-			conn->msg_r[size_recv] = '\0';
-			printf("%s\n", conn->msg_r);
-			fflush(stdout);
-		}
-	}
+	printf("%s\n",conn->msg_r);
 	return CMD_SUCCESS;
 }
-/*
-DEFUN(read_mess,
-	  read_mess_cmd,
-	  "read mess", 
-	  "read message from ip pipeline")
-{
-	int size_recv;
-	size_recv = read(conn->fd_client, conn->msg_r, conn->msg_r_len_max);
-
-	if (size_recv > 0) {
-		conn->msg_r[size_recv] = '\0';
-		printf("%s", conn->msg_r);
-		fflush(stdout);
-	}
-	return CMD_SUCCESS;
-}
-*/
 
 /* VIEW NODE CMD */
+
+DEFUN (reconnect_server,
+	   reconnect_server_cmd,
+	   "reconnect (A.B.C.D|WORD) <1-65535>",
+	   "reconnect to server\n"
+	   "IP server address\n"
+	   "Hostname\n"
+	   "Port number")
+{	
+	pthread_t conn_handling;
+	char server_addr[MAX_SIZE];
+	int port = str2i(argv[1]);
+	snprintf(server_addr, MAX_SIZE, "%s", argv[0]);
+	conn = conn_init(server_addr, port);
+	if (conn == NULL) {
+		printf("Cannot establish connection!\n");
+		return CMD_WARNING;
+	}
+	
+	if (conn != NULL) 
+    	pthread_create(&conn_handling, NULL, check_conn, NULL);
+    printf("Connection is established!\n");
+	return CMD_SUCCESS;
+}
+
+DEFUN (disconnect_server,
+	   disconnect_server_cmd,
+	   "disconnect",
+	   "disconnect to server")
+{
+	if (conn == NULL) {
+		printf("Connection hasn't been established\n"
+			   "Cannot disconnect\n");
+		return CMD_WARNING;
+	}
+	conn_free(conn);
+	conn = NULL;
+	if (conn != NULL) {
+		printf("Cannot disconnect\n");
+		return CMD_WARNING;
+	}
+	printf("Disconnect successful\n");
+	return CMD_SUCCESS;
+}
+
+DEFUN (firewall_ls,
+	   firewall_ls_cmd,
+	   "firewall ls",
+	   "Hieu thi cac rule ACL co trong Scrubber")
+{
+	SEND_AND_RETURN("firewall ls");
+}
+
 
 DEFUN (redis_status,
 	   redis_status_cmd,
@@ -180,13 +212,6 @@ DEFUN (pcap_dstip_ls,
 	SEND_AND_RETURN("pcap dstip ls");
 }
 
-DEFUN (firewall_ls,
-	   firewall_ls_cmd,
-	   "firewall ls",
-	   "Hieu thi cac rule ACL co trong Scrubber")
-{
-	SEND_AND_RETURN("firewall ls");
-}
 
 
 DEFUN (corestats_show_pipeline_id,
@@ -458,8 +483,8 @@ DEFUN (pcap_packet_per_file,
 
 void vtysh_ippp_init (void)
 {
-    //install_element (ENABLE_NODE, &read_mess_cmd);
-    install_element (VIEW_NODE, &read_mess_cmd);
+    install_element (VIEW_NODE, &reconnect_server_cmd);
+    install_element (VIEW_NODE, &disconnect_server_cmd);
     install_element (VIEW_NODE, &redis_status_cmd);
     install_element (VIEW_NODE, &link_ls_cmd);
     install_element (VIEW_NODE, &corestats_show_cmd);
