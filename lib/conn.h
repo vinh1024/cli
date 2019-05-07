@@ -13,9 +13,13 @@ struct conn {
 };
 
 
-struct conn *conn_init(void);
+struct conn *conn_init(char *SERVER_ADDR, int port);
 
 void conn_free(struct conn *conn);
+
+int readall(int fd, char *buffer, int size);
+
+void *check_conn();
 
 extern struct conn *conn;
 

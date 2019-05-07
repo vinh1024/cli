@@ -16,30 +16,38 @@
 #define BUF_SIZE (1024 * 1024)
 #define MSG_W_MAX (1024)
 #define MSG_R_MAX (1024 * 1024)
-#define PORT 8086
-#define SERVER_ADDR "192.168.2.67"
 
 
-
-int read_msg(int fd, char *msg, int max_len)
+int readall(int fd, char *buffer, int size) 
 {
-	int size_recv;
-	size_recv = read(fd, msg, max_len);
+	int num_read, total_read;
+	char *buf;
+	buf = buffer;
+	for (total_read = 0;; ) {
 
-	if (size_recv > 0) {
-		msg[size_recv] = '\0';
-		printf("%s", msg);
-		fflush(stdout);
+		num_read = read(fd, buf, size - total_read);
+		if (num_read == 0)
+			return total_read;
+		if (num_read == -1) {
+			if (errno == EINTR)
+				continue; 		// interrupted -> restart read()
+			else
+				return -1;
+		}
+		total_read += num_read;
+		if (buf[num_read - 2] == '>') {
+			return total_read;
+		}
+		buf += num_read;
 	}
-	return size_recv;
+	return total_read;
 }
 
-struct conn *conn_init(void) {
+struct conn *conn_init(char *SERVER_ADDR, int port) {
 
 	struct sockaddr_in server_addr;
 	struct conn *conn;
-	int fd_client, status, ret, fd_server_group, event_count;
-	struct epoll_event event;
+	int fd_client, status, ret, fd_server_group;
 
 	conn = calloc(1, sizeof(struct conn));
 	if (conn == NULL)
@@ -56,7 +64,7 @@ struct conn *conn_init(void) {
 
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDR);
-	server_addr.sin_port = htons(PORT);
+	server_addr.sin_port = htons(port);
 
 	//create socket
 	fd_client = socket(AF_INET, SOCK_STREAM, 0);
@@ -85,28 +93,12 @@ struct conn *conn_init(void) {
 	conn->fd_server_group = fd_server_group;
 	conn->fd_client = fd_client;
 
-	event.events = EPOLLIN;
-	event.data.fd = fd_client;
-
-	status = epoll_ctl(conn->fd_server_group, EPOLL_CTL_ADD, fd_client, &event);
-
-	ret = read(fd_client, conn->msg_r, conn->msg_r_len_max);
+	ret = readall(fd_client, conn->msg_r, conn->msg_r_len_max);
 	if (ret > 0) {
 		conn->msg_r[ret] = '\0';
 		printf("%s\n", conn->msg_r);
 		fflush(stdout);
 	}
-
-	event_count = epoll_wait(conn->fd_server_group, &event, 1, 500);
-	if (event_count > 0) {
-		ret = read(fd_client, conn->msg_r, conn->msg_r_len_max);
-		if (ret > 0) {
-			conn->msg_r[ret] = '\0';
-			printf("%s\n", conn->msg_r);
-			fflush(stdout);
-		}
-	}
-	
 
 	return conn;
 }
@@ -124,3 +116,4 @@ void conn_free(struct conn *conn)
 	free(conn->msg_w);
 	free(conn);
 }
+
