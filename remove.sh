@@ -18,3 +18,6 @@ rm ./lib/cmake_install.cmake ./lib/Makefile
 echo rm -r vtysh/CMakeFiles cmake_install.cmake Makefile
 rm -r vtysh/CMakeFiles 
 rm ./vtysh/cmake_install.cmake ./vtysh/Makefile
+
+rm -r ./dependencies/pam_tacplus-1.4.1/
+
